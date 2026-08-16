@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#172033"><title>ShoeFlow — Business Edition</title>
+<style>
+:root{--ink:#172033;--bg:#f5f7fb;--line:#e4e8ef;--muted:#687386;--ok:#087443;--bad:#b42318}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--ink);color:#fff;padding:20px}.wrap{max-width:1200px;margin:auto}.nav{display:flex;gap:7px;flex-wrap:wrap;padding:14px 0}.nav button,.btn{border:0;border-radius:9px;padding:10px 13px;background:var(--ink);color:#fff;cursor:pointer}.btn.alt,.nav button.alt{background:#e8edf5;color:var(--ink)}.btn.green{background:#087443}
+section{display:none}.active{display:block}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}.stat{font-size:27px;font-weight:800}.muted{color:var(--muted);font-size:13px}input,select{width:100%;padding:10px;border:1px solid #d6dce6;border-radius:9px;background:#fff}label{font-size:13px;font-weight:700;display:block;margin-bottom:5px}table{width:100%;border-collapse:collapse}th,td{padding:10px 7px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.scroll{overflow:auto}.thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;vertical-align:middle}.row{display:flex;gap:8px;flex-wrap:wrap}.ok{color:var(--ok)}.bad{color:var(--bad)}.pill{padding:4px 8px;border-radius:99px;background:#edf2f7;font-size:12px}.search{max-width:360px}
+</style></head>
+<body>
+<header><div class="wrap"><h1>👟 ShoeFlow</h1><div>Business Edition — inventory, orders, customers & sales</div></div></header>
+<main class="wrap">
+<div class="nav">
+<button onclick="tab('dash')">Dashboard</button><button onclick="tab('products')">Products</button><button onclick="tab('orders')">Orders</button><button onclick="tab('customers')">Customers</button><button onclick="tab('settings')">Settings</button>
+</div>
+
+<section id="dash" class="active"><h2>Dashboard</h2><div class="grid">
+<div class="card"><div class="muted">Paid revenue</div><div id="rev" class="stat">KSh 0</div></div>
+<div class="card"><div class="muted">Gross profit</div><div id="gp" class="stat">KSh 0</div></div>
+<div class="card"><div class="muted">Orders</div><div id="oc" class="stat">0</div></div>
+<div class="card"><div class="muted">Low stock</div><div id="ls" class="stat">0</div></div>
+</div>
+<div class="card"><h3>Quick actions</h3><div class="row"><button class="btn" onclick="tab('products')">＋ Add shoe</button><button class="btn" onclick="tab('orders')">＋ New order</button><button class="btn alt" onclick="backup()">Export backup</button></div></div>
+<div class="card"><h3>Low-stock report</h3><div id="lowReport">No low-stock items.</div></div></section>
+
+<section id="products"><h2>Products</h2>
+<div class="card"><div class="grid">
+<div><label>Name</label><input id="pn" placeholder="Air Max 95"></div><div><label>Size</label><input id="ps" placeholder="42"></div>
+<div><label>Colour</label><input id="pc" placeholder="Black"></div><div><label>Stock</label><input id="pst" type="number" min="0" value="1"></div>
+<div><label>Cost price</label><input id="pb" type="number" min="0"></div><div><label>Selling price</label><input id="pv" type="number" min="0"></div>
+<div><label>Photo URL</label><input id="pi" placeholder="https://..."></div></div><br><button class="btn" onclick="addProduct()">Save product</button></div>
+<div class="card"><input class="search" id="psrch" oninput="renderProducts()" placeholder="Search shoes..."><br><br><div class="scroll"><table><thead><tr><th>Product</th><th>Size</th><th>Stock</th><th>Price</th><th>Profit/unit</th><th></th></tr></thead><tbody id="pt"></tbody></table></div></div></section>
+
+<section id="orders"><h2>Orders</h2>
+<div class="card"><div class="grid">
+<div><label>Customer</label><input id="cn" placeholder="Name"></div><div><label>Phone</label><input id="cp" placeholder="2547..."></div>
+<div><label>Product</label><select id="op"></select></div><div><label>Quantity</label><input id="oq" type="number" min="1" value="1"></div>
+<div><label>Payment</label><select id="pay"><option>Pending</option><option>Paid</option></select></div><div><label>Delivery</label><select id="del"><option>Pending</option><option>Out for delivery</option><option>Delivered</option></select></div></div><br>
+<button class="btn" onclick="createOrder()">Create order</button></div>
+<div class="card"><div class="scroll"><table><thead><tr><th>Customer</th><th>Item</th><th>Total</th><th>Payment</th><th>Delivery</th><th>Actions</th></tr></thead><tbody id="ot"></tbody></table></div></div></section>
+
+<section id="customers"><h2>Customers</h2><div class="card"><div class="scroll"><table><thead><tr><th>Name</th><th>Phone</th><th>Orders</th><th>Spent</th></tr></thead><tbody id="ct"></tbody></table></div></div></section>
+
+<section id="settings"><h2>Business settings</h2><div class="card"><div class="grid">
+<div><label>Business name</label><input id="bn"></div><div><label>WhatsApp number</label><input id="wa" placeholder="2547XXXXXXXX"></div></div><br><button class="btn" onclick="saveSettings()">Save settings</button></div>
+<div class="card"><h3>Important production note</h3><p>This edition is fully usable on one device and stores its database locally. For a multi-device commercial deployment, the next layer is a secure cloud database, authentication, server-side backups and API integrations.</p></div></section>
+</main>
+<script>
+const KEY='shoeflow_business_v3';
+let db=JSON.parse(localStorage.getItem(KEY)||'{"products":[],"orders":[],"settings":{"business":"ShoeFlow","wa":""}}');
+const $=id=>document.getElementById(id), money=n=>'KSh '+Number(n||0).toLocaleString();
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
+function tab(id){document.querySelectorAll('section').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');render()}
+function addProduct(){
+ let p={id:Date.now(),name:$('pn').value.trim(),size:$('ps').value.trim(),color:$('pc').value.trim(),stock:+$('pst').value||0,buy:+$('pb').value||0,sell:+$('pv').value||0,img:$('pi').value.trim()};
+ if(!p.name||!p.size||p.sell<=0)return alert('Enter name, size and selling price.');
+ db.products.push(p);['pn','ps','pc','pi'].forEach(x=>$(x).value='');$('pst').value=1;$('pb').value='';$('pv').value='';save();tab('products')
+}
+function createOrder(){
+ let p=db.products.find(x=>x.id==+$('op').value),q=+$('oq').value||1;if(!p)return alert('Add a product first.');if(q>p.stock)return alert('Not enough stock.');
+ let o={id:Date.now(),customer:$('cn').value.trim()||'Walk-in',phone:$('cp').value.trim(),productId:p.id,product:p.name,size:p.size,qty:q,total:q*p.sell,cost:q*p.buy,payment:$('pay').value,delivery:$('del').value,date:new Date().toISOString()};
+ db.orders.push(o);p.stock-=q;['cn','cp'].forEach(x=>$(x).value='');save();tab('orders')
+}
+function setField(id,f,v){let o=db.orders.find(x=>x.id===id);if(o){o[f]=v;save()}}
+function deleteOrder(id){if(confirm('Delete this order and restore its stock?')){let o=db.orders.find(x=>x.id===id),p=db.products.find(x=>x.id===o?.productId);if(p)p.stock+=o.qty;db.orders=db.orders.filter(x=>x.id!==id);save()}}
+function whatsapp(o){
+ let msg=`Order ${o.id}\\n${o.product} size ${o.size} x${o.qty}\\nTotal: ${money(o.total)}\\nPayment: ${o.payment}\\nDelivery: ${o.delivery}`;
+ let n=o.phone.replace(/\\D/g,'');if(n)window.open('https://wa.me/'+n+'?text='+encodeURIComponent(msg),'_blank');else alert('No customer phone number saved.')
+}
+function invoice(o){let w=window.open('','_blank');w.document.write(`<h2>${esc(db.settings.business)}</h2><p>Order #${o.id}</p><p>Customer: ${esc(o.customer)}</p><hr><p>${esc(o.product)} — size ${esc(o.size)} × ${o.qty}</p><h3>Total: ${money(o.total)}</h3><p>Payment: ${o.payment}<br>Delivery: ${o.delivery}</p>`);w.print()}
+function backup(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='shoeflow-backup.json';a.click()}
+function saveSettings(){db.settings.business=$('bn').value.trim()||'ShoeFlow';db.settings.wa=$('wa').value.trim();save();alert('Settings saved.')}
+function renderProducts(){
+ let q=($('psrch')?.value||'').toLowerCase();let arr=db.products.filter(p=>(p.name+' '+p.size+' '+p.color).toLowerCase().includes(q));
+ $('pt').innerHTML=arr.map(p=>`<tr><td>${p.img?`<img class="thumb" src="${esc(p.img)}"> `:''}<b>${esc(p.name)}</b><br><span class="muted">${esc(p.color)}</span></td><td>${esc(p.size)}</td><td class="${p.stock<=2?'bad':'ok'}">${p.stock}</td><td>${money(p.sell)}</td><td>${money(p.sell-p.buy)}</td><td><button class="btn alt" onclick="if(confirm('Delete product?')){db.products=db.products.filter(x=>x.id!==${p.id});save()}">Delete</button></td></tr>`).join('')
+}
+function render(){
+ let paid=db.orders.filter(o=>o.payment==='Paid');$('rev').textContent=money(paid.reduce((a,o)=>a+o.total,0));$('gp').textContent=money(paid.reduce((a,o)=>a+o.total-o.cost,0));$('oc').textContent=db.orders.length;$('ls').textContent=db.products.filter(p=>p.stock<=2).length;
+ $('lowReport').innerHTML=db.products.filter(p=>p.stock<=2).map(p=>`<p>⚠️ <b>${esc(p.name)}</b> size ${esc(p.size)} — ${p.stock} left</p>`).join('')||'No low-stock items.';
+ renderProducts();
+ $('op').innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(p.name)} — size ${esc(p.size)} — ${money(p.sell)} (${p.stock})</option>`).join('');
+ $('ot').innerHTML=db.orders.slice().reverse().map(o=>`<tr><td><b>${esc(o.customer)}</b><br><span class="muted">${esc(o.phone)}</span></td><td>${esc(o.product)} (${esc(o.size)}) ×${o.qty}</td><td>${money(o.total)}</td><td><select onchange="setField(${o.id},'payment',this.value)"><option ${o.payment==='Pending'?'selected':''}>Pending</option><option ${o.payment==='Paid'?'selected':''}>Paid</option></select></td><td><select onchange="setField(${o.id},'delivery',this.value)">${['Pending','Out for delivery','Delivered'].map(x=>`<option ${o.delivery===x?'selected':''}>${x}</option>`).join('')}</select></td><td><button class="btn alt" onclick="whatsapp(${JSON.stringify(o).replace(/"/g,'&quot;')})">WhatsApp</button> <button class="btn alt" onclick="invoice(${JSON.stringify(o).replace(/"/g,'&quot;')})">Invoice</button> <button class="btn alt" onclick="deleteOrder(${o.id})">Delete</button></td></tr>`).join('');
+ let c={};db.orders.forEach(o=>{let k=o.phone||o.customer;c[k]??={name:o.customer,phone:o.phone,n:0,s:0};c[k].n++;c[k].s+=o.total});$('ct').innerHTML=Object.values(c).map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td>${x.n}</td><td>${money(x.s)}</td></tr>`).join('');
+ $('bn').value=db.settings.business;$('wa').value=db.settings.wa;
+}
+render();
+</script></body></html>
